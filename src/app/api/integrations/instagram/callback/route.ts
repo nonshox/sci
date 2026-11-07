@@ -1,6 +1,34 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import type { NextRequest } from 'next/server';
 import { encryptSecret } from '@/lib/crypto';
 import { exchangeCode } from '@/lib/instagram';
 export const runtime='nodejs';
-export async function GET(req:Request){const u=new URL(req.url);const code=u.searchParams.get('code');const state=u.searchParams.get('state');const error=u.searchParams.get('error_description')||u.searchParams.get('error');if(error)return NextResponse.redirect(new URL(`/?instagram_error=${encodeURIComponent(error)}`,u.origin));if(!code||!state)return NextResponse.json({error:'Missing OAuth code or state.'},{status:400});const db=getDb();const saved=db.prepare('SELECT expires_at FROM oauth_states WHERE state=?').get(state) as {expires_at:number}|undefined;db.prepare('DELETE FROM oauth_states WHERE state=?').run(state);if(!saved||saved.expires_at<Math.floor(Date.now()/1000))return NextResponse.json({error:'Invalid or expired OAuth state.'},{status:400});try{const token=await exchangeCode(code);const encrypted=encryptSecret(token.access_token);db.prepare('INSERT INTO sources(kind,label,external_id,access_token_enc,token_expires_at) VALUES(?,?,?,?,?)').run('instagram_professional','Instagram Business/Creator',token.user_id,encrypted,String(Math.floor(Date.now()/1000)+token.expires_in));return NextResponse.redirect(new URL('/?instagram=connected',u.origin))}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Instagram authorization failed'},{status:502})}}
+export async function GET(req:NextRequest){
+  const url=new URL(req.url);
+  const response=NextResponse.redirect(new URL('/',url.origin));
+  response.cookies.set('sci_instagram_oauth_state','',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/api/integrations/instagram/callback',maxAge:0});
+  const error=url.searchParams.get('error_description')||url.searchParams.get('error');
+  if(error){
+    response.headers.set('location',new URL(`/?instagram_error=${encodeURIComponent(error)}`,url.origin).toString());
+    return response;
+  }
+  const code=url.searchParams.get('code');
+  const state=url.searchParams.get('state');
+  const savedState=req.cookies.get('sci_instagram_oauth_state')?.value;
+  if(!code||!state)return NextResponse.json({error:'Missing OAuth code or state.'},{status:400});
+  if(!savedState||state!==savedState)return NextResponse.json({error:'Invalid or expired OAuth state. Start Instagram login again.'},{status:400});
+  try{
+    const token=await exchangeCode(code);
+    response.cookies.set('sci_instagram_token',encryptSecret(token.access_token),{
+      httpOnly:true,
+      secure:process.env.NODE_ENV==='production',
+      sameSite:'lax',
+      path:'/',
+      maxAge:Math.min(token.expires_in,60*24*60*60),
+    });
+    response.headers.set('location',new URL('/?instagram=connected',url.origin).toString());
+    return response;
+  }catch(e){
+    return NextResponse.json({error:e instanceof Error?e.message:'Instagram authorization failed'},{status:502});
+  }
+}
