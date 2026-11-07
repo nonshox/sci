@@ -1,5 +1,6 @@
 
 import Database from 'better-sqlite3';
+import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 
@@ -12,7 +13,12 @@ export function getDb(): Database.Database {
     return globalForDb.sciDb;
   }
 
-  const dbPath = process.env.DATABASE_PATH || './data/sci.db';
+  const configuredPath = process.env.DATABASE_PATH;
+  const dbPath = process.env.VERCEL
+    ? configuredPath && path.isAbsolute(configuredPath)
+      ? configuredPath
+      : path.join(os.tmpdir(), 'sci.db')
+    : configuredPath || './data/sci.db';
   const absolute = path.resolve(dbPath);
 
   fs.mkdirSync(path.dirname(absolute), { recursive: true });

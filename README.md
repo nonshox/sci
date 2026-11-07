@@ -15,6 +15,11 @@ npm run dev
 ```
 Open http://localhost:3000.
 
+## Vercel demo deployment
+- Set `SCI_SECRET_KEY` and the Instagram variables in the Vercel project settings. Set `META_INSTAGRAM_REDIRECT_URI` to the exact HTTPS callback URL registered in Meta.
+- The app uses `/tmp/sci.db` on Vercel when `DATABASE_PATH` is unset or relative, avoiding writes to Vercel's read-only application directory. An absolute `DATABASE_PATH` is used as configured.
+- This SQLite setup is only for a temporary demo: `/tmp` data can disappear when an instance is recycled and is not shared reliably between serverless instances. For dependable data and Instagram OAuth state, migrate to a managed database before relying on the deployment.
+
 Generate a secret:
 ```bash
 openssl rand -hex 32
