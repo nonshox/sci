@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getDb } from './db';
 import { decryptSecret } from './crypto';
 import { createHash } from 'node:crypto';
 import type { IncomingItem } from './types';
@@ -49,5 +49,5 @@ export async function fetchInstagram(sourceId:number,encrypted:string):Promise<I
   return (media.data||[]).map(o=>({external_id:String(o.id),url:o.permalink||null,title:`Instagram ${o.media_type||'media'}`,body:o.caption||'',published_at:o.timestamp||null,content_hash:createHash('sha256').update(String(o.id)+(o.caption||'')).digest('hex'),metadata:{platform:'instagram',media_type:o.media_type,media_url:o.media_url,thumbnail_url:o.thumbnail_url,account:account.username}}));
 }
 export function connectedSource(id:number,label:string,token:string,userId:string,expires:number) {
-  db.prepare('INSERT INTO sources(kind,label,external_id,access_token_enc,token_expires_at) VALUES(?,?,?,?,?)').run('instagram_professional',label,userId,token,String(Math.floor(Date.now()/1000)+expires));
+  getDb().prepare('INSERT INTO sources(kind,label,external_id,access_token_enc,token_expires_at) VALUES(?,?,?,?,?)').run('instagram_professional',label,userId,token,String(Math.floor(Date.now()/1000)+expires));
 }

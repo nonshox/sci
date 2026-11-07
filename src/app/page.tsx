@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import type { Source,ContentItem } from '@/lib/types';
 import { AddWebsiteForm } from '@/components/add-website-form';
 import { SyncButton } from '@/components/sync-button';
 export const dynamic='force-dynamic';
 export default function Home(){
+ const db=getDb();
  const sources=db.prepare('SELECT id,kind,label,url,external_id,created_at,last_synced_at FROM sources ORDER BY id DESC').all() as Source[];
  const content=db.prepare('SELECT * FROM content_items ORDER BY collected_at DESC LIMIT 8').all() as ContentItem[];
  const instagram=sources.filter(s=>s.kind==='instagram_professional').length;

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import dns from 'node:dns/promises';
 import net from 'node:net';
-import { db } from './db';
+import { getDb } from './db';
 import type { IncomingItem } from './types';
 
 function isPublicIp(ip:string) {
@@ -44,6 +44,7 @@ export async function fetchWebsite(raw:string):Promise<IncomingItem[]> {
   return [{external_id:canonical,url:canonical,title,body,content_hash:hash(title,body),metadata:{type:'webpage',content_type:type}}];
 }
 export function saveItems(sourceId:number, items:IncomingItem[]) {
+  const db=getDb();
   const stmt=db.prepare(`INSERT INTO content_items(source_id,external_id,canonical_url,title,body,published_at,content_hash,metadata_json)
   VALUES(@source_id,@external_id,@url,@title,@body,@published_at,@content_hash,@metadata)
   ON CONFLICT(source_id,external_id) DO UPDATE SET canonical_url=excluded.canonical_url,title=excluded.title,body=excluded.body,published_at=excluded.published_at,content_hash=excluded.content_hash,metadata_json=excluded.metadata_json`);
